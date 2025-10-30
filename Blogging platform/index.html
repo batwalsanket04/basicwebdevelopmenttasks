@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Blogging Platform</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#6ee7b7;--danger:#ff6b6b}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071026 0%, #0b1524 100%);color:#e6eef6}
+    .wrap{max-width:1100px;margin:28px auto;padding:22px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    header h1{font-size:20px;margin:0}
+    header p{margin:0;color:var(--muted);font-size:13px}
+
+    .grid{display:grid;grid-template-columns:320px 1fr;gap:18px}
+
+    .panel{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,.6)}
+
+    /* sidebar */
+    .sidebar{height:72vh;display:flex;flex-direction:column}
+    .controls{display:flex;gap:8px;margin-bottom:12px}
+    button{background:transparent;border:1px solid rgba(255,255,255,.06);color:inherit;padding:8px 10px;border-radius:8px;cursor:pointer}
+    button.primary{background:linear-gradient(90deg,var(--accent),#7dd3fc);color:#062226;border:none}
+    .search{margin:10px 0}
+    input[type="search"]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:inherit}
+
+    .post-list{overflow:auto;flex:1;padding-right:6px}
+    .post-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;margin-bottom:8px;cursor:pointer}
+    .post-item:hover{background:rgba(255,255,255,.02)}
+    .meta{display:flex;flex-direction:column}
+    .meta .title{font-weight:600}
+    .meta .subtitle{font-size:12px;color:var(--muted)}
+    .badge{font-size:11px;padding:6px;border-radius:999px}
+    .draft{background:rgba(255,255,255,.04)}
+    .published{background:linear-gradient(90deg,#063a14,#0b8b4a)}
+
+    /* editor */
+    .editor{height:72vh;display:flex;flex-direction:column}
+    .fields{display:flex;gap:12px;margin-bottom:12px}
+    .fields input{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.04);background:transparent;color:inherit}
+    textarea{flex:1;min-height:320px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.04);background:transparent;color:inherit;resize:vertical}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .small{font-size:13px;padding:6px 8px}
+    .muted{color:var(--muted)}
+    footer{margin-top:12px;color:var(--muted);font-size:13px}
+
+    .empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:900px){.grid{grid-template-columns:1fr;}.sidebar{height:auto}.editor{height:auto}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Simple Blogging Platform</h1>
+        <p>Create, edit, and publish posts — no backend required (localStorage used). Export/Import JSON supported.</p>
+      </div>
+      <div>
+        <small class="muted">Local mode • works in any browser</small>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Sidebar -->
+      <aside class="panel sidebar">
+        <div class="controls">
+          <button id="newBtn" class="primary">+ New Post</button>
+          <button id="exportBtn">Export</button>
+          <label style="display:inline-block">
+            <input id="importFile" type="file" accept="application/json" style="display:none" />
+            <button id="importBtn">Import</button>
+          </label>
+        </div>
+
+        <div class="search">
+          <input id="search" type="search" placeholder="Search title or content..." />
+        </div>
+
+        <div class="post-list" id="postList" aria-live="polite"></div>
+      </aside>
+
+      <!-- Editor -->
+      <main class="panel editor">
+        <div class="fields">
+          <input id="title" placeholder="Post title" />
+          <input id="tags" placeholder="tags (comma separated)" />
+        </div>
+
+        <textarea id="content" placeholder="Write your post here..."></textarea>
+
+        <div class="toolbar">
+          <button id="saveDraft" class="small">Save Draft</button>
+          <button id="publish" class="small primary">Publish</button>
+          <button id="delete" class="small" style="background:transparent;border-color:rgba(255,255,255,.04);">Delete</button>
+
+          <div style="margin-left:auto" class="muted">Last saved: <span id="lastSaved">never</span></div>
+        </div>
+
+        <footer>
+          
+        </footer>
+
+        <div id="emptyState" class="empty" style="display:none">No post selected — click "+ New Post" or pick a post from the left.</div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // use  localStorage
+    const STORAGE_KEY = 'simple_blog_posts_v1';
+
+    // DOM
+    const postList = document.getElementById('postList');
+    const newBtn = document.getElementById('newBtn');
+    const titleEl = document.getElementById('title');
+    const tagsEl = document.getElementById('tags');
+    const contentEl = document.getElementById('content');
+    const saveDraftBtn = document.getElementById('saveDraft');
+    const publishBtn = document.getElementById('publish');
+    const deleteBtn = document.getElementById('delete');
+    const lastSavedEl = document.getElementById('lastSaved');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFile = document.getElementById('importFile');
+    const searchEl = document.getElementById('search');
+    const emptyState = document.getElementById('emptyState');
+
+    let posts = [];  
+    let currentId = null;
+
+    // Utilities
+    function uid(){return 'p_'+Date.now()+'_'+Math.floor(Math.random()*9999)}
+    function nowISO(){return new Date().toISOString()}
+
+    // Storage
+    function loadFromStorage(){
+      try{
+        const raw=localStorage.getItem(STORAGE_KEY);
+        posts = raw? JSON.parse(raw): [];
+      }catch(e){posts=[]}
+    }
+    function saveToStorage(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+    }
+
+    // Rendering
+    function renderList(filter=''){
+      postList.innerHTML='';
+      const list = posts.slice().sort((a,b)=> new Date(b.updated||b.created) - new Date(a.updated||a.created));
+      const filtered = list.filter(p=>{
+        if(!filter) return true;
+        const f = filter.toLowerCase();
+        return (p.title||'').toLowerCase().includes(f) || (p.content||'').toLowerCase().includes(f) || (p.tags||[]).join(' ').toLowerCase().includes(f);
+      });
+      if(filtered.length===0){ postList.innerHTML='<div class="muted">No posts — create one.</div>'; return }
+      filtered.forEach(p=>{
+        const item = document.createElement('div');
+        item.className='post-item';
+        item.title = (p.title||'Untitled');
+        const left = document.createElement('div'); left.className='meta';
+        const t = document.createElement('div'); t.className='title'; t.textContent = p.title || 'Untitled';
+        const s = document.createElement('div'); s.className='subtitle muted';
+        s.textContent = `${p.status || 'draft'} • ${new Date(p.updated||p.created).toLocaleString()}`;
+        left.appendChild(t); left.appendChild(s);
+        const right = document.createElement('div');
+        const badge = document.createElement('span'); badge.className='badge '+(p.status==='published' ? 'published' : 'draft'); badge.textContent = p.status || 'draft';
+        right.appendChild(badge);
+        item.appendChild(left); item.appendChild(right);
+
+        item.addEventListener('click',()=> openPost(p.id));
+        postList.appendChild(item);
+      });
+    }
+
+    function openPost(id){
+      const p = posts.find(x=>x.id===id);
+      if(!p) return;
+      currentId = id;
+      titleEl.value = p.title || '';
+      tagsEl.value = (p.tags||[]).join(', ');
+      contentEl.value = p.content || '';
+      lastSavedEl.textContent = new Date(p.updated||p.created).toLocaleString();
+      emptyState.style.display='none';
+    }
+
+    function clearEditor(){
+      currentId = null;
+      titleEl.value = '';
+      tagsEl.value = '';
+      contentEl.value = '';
+      lastSavedEl.textContent = 'never';
+      emptyState.style.display='block';
+    }
+
+    // CRUD
+    function createNew(){
+      const newPost = { id: uid(), title: '', content: '', tags: [], status: 'draft', created: nowISO(), updated: nowISO() };
+      posts.push(newPost);
+      saveToStorage();
+      renderList(searchEl.value.trim());
+      openPost(newPost.id);
+    }
+
+    function saveDraft(){
+      if(!currentId){ // if no current, create one
+        const p = { id: uid(), title: titleEl.value.trim(), content: contentEl.value, tags: parseTags(tagsEl.value), status: 'draft', created: nowISO(), updated: nowISO() };
+        posts.push(p);
+        currentId = p.id;
+        lastSavedEl.textContent = new Date(p.updated).toLocaleString();
+        saveToStorage();
+        renderList(searchEl.value.trim());
+        return;
+      }
+      const p = posts.find(x=>x.id===currentId);
+      if(!p) return;
+      p.title = titleEl.value.trim();
+      p.content = contentEl.value;
+      p.tags = parseTags(tagsEl.value);
+      p.status = p.status || 'draft';
+      p.updated = nowISO();
+      saveToStorage();
+      lastSavedEl.textContent = new Date(p.updated).toLocaleString();
+      renderList(searchEl.value.trim());
+    }
+
+    function publish(){
+      if(!currentId){ saveDraft(); }
+      const p = posts.find(x=>x.id===currentId);
+      if(!p) return;
+      p.status = 'published';
+      p.title = titleEl.value.trim() || 'Untitled';
+      p.content = contentEl.value;
+      p.tags = parseTags(tagsEl.value);
+      p.updated = nowISO();
+      saveToStorage();
+      lastSavedEl.textContent = new Date(p.updated).toLocaleString();
+      renderList(searchEl.value.trim());
+      alert('Post published locally.');
+    }
+
+    function removeCurrent(){
+      if(!currentId) return;
+      if(!confirm('Delete this post?')) return;
+      posts = posts.filter(x=>x.id!==currentId);
+      saveToStorage();
+      renderList(searchEl.value.trim());
+      clearEditor();
+    }
+
+    function parseTags(raw){
+      return raw.split(',').map(s=>s.trim()).filter(Boolean);
+    }
+
+    // Export / Import
+    function exportPosts(){
+      const data = JSON.stringify(posts, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'blog-posts.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function importPostsFile(file){
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        try{
+          const imported = JSON.parse(e.target.result);
+          if(!Array.isArray(imported)) throw new Error('Invalid format');
+       
+          const map = new Map(posts.map(p=>[p.id,p]));
+          imported.forEach(ip=> map.set(ip.id || uid(), ip));
+          posts = Array.from(map.values());
+          saveToStorage();
+          renderList(searchEl.value.trim());
+          alert('Import complete.');
+        }catch(err){ alert('Failed to import: '+err.message) }
+      }
+      reader.readAsText(file);
+    }
+
+    // Init
+    function init(){
+      loadFromStorage();
+      renderList();
+      if(posts.length>0){ clearEditor(); }
+      else{ clearEditor(); }
+
+      newBtn.addEventListener('click',()=>{ createNew(); });
+      saveDraftBtn.addEventListener('click',()=>{ saveDraft(); });
+      publishBtn.addEventListener('click',()=>{ publish(); });
+      deleteBtn.addEventListener('click',()=>{ removeCurrent(); });
+      exportBtn.addEventListener('click', exportPosts);
+      importBtn.addEventListener('click', ()=> importFile.click());
+      importFile.addEventListener('change', (e)=>{ if(e.target.files[0]) importPostsFile(e.target.files[0]); e.target.value=''; });
+      searchEl.addEventListener('input', (e)=> renderList(e.target.value.trim()));
+
+     
+      setInterval(()=>{
+        if(currentId || titleEl.value || contentEl.value) saveDraft();
+      }, 12000);
+
+  
+      window.addEventListener('keydown', (e)=>{
+        if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){
+          e.preventDefault(); saveDraft();
+        }
+        if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='p'){
+          e.preventDefault(); publish();
+        }
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>

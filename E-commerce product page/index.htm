@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E-commerce product page</title>
+  <link rel="stylesheet" href="Style.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">🛍️ SKart</div>
+    <nav>
+      <a href="#">Home</a>
+      <a href="#">Shop</a>
+      <a href="#" id="cartLink">Cart (<span id="cartCount">0</span>)</a>
+    </nav>
+  </header>
+
+  <main id="productList" class="product-list"></main>
+
+  <!-- Cart Popup -->
+  <div class="cart-popup" id="cartPopup">
+    🛒 Product added to cart successfully!
+  </div>
+
+  <!-- Cart Modal -->
+  <div class="cart-modal" id="cartModal">
+    <div class="cart-content">
+      <h2>Your Cart</h2>
+      <ul id="cartItems"></ul>
+      <button id="closeCart">Close</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 TrendyStore | All Rights Reserved</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

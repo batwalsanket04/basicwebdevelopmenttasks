@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Weather Dashboard</title>
+  <style>
+    *{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
+    body{
+      margin:0;
+      background:linear-gradient(135deg,#0f172a,#1e293b);
+      color:#f8fafc;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      height:100vh;
+    }
+    .card{
+      background:#1e293b;
+      padding:30px;
+      border-radius:16px;
+      box-shadow:0 8px 20px rgba(0,0,0,0.4);
+      width:340px;
+      text-align:center;
+      transition:0.3s;
+    }
+    h2{margin:0 0 10px;}
+    input{
+      width:100%;
+      padding:10px;
+      border:none;
+      border-radius:8px;
+      outline:none;
+      margin-bottom:15px;
+      background:#334155;
+      color:#f8fafc;
+      text-align:center;
+    }
+    .btn{
+      background:#38bdf8;
+      border:none;
+      padding:10px 20px;
+      border-radius:8px;
+      cursor:pointer;
+      color:#0f172a;
+      font-weight:600;
+      transition:0.2s;
+    }
+    .btn:hover{background:#7dd3fc;}
+    .weather-box{
+      margin-top:20px;
+      padding:10px;
+      border-radius:10px;
+      background:#0f172a;
+      animation:fadeIn 0.6s ease;
+    }
+    .temp{font-size:2rem;font-weight:700;margin:5px 0;}
+    .humidity,.status{color:#94a3b8;font-size:14px;}
+    @keyframes fadeIn{
+      from{opacity:0;transform:translateY(20px);}
+      to{opacity:1;transform:translateY(0);}
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🌤️ Interactive Weather</h2>
+    <input type="text" id="cityInput" placeholder="Enter city name" />
+    <button class="btn" id="showBtn">Show Weather</button>
+
+    <div id="weatherBox" class="weather-box" style="display:none;">
+      <div class="temp" id="temp">-- °C</div>
+      <div class="humidity" id="humidity">Humidity: --%</div>
+      <div class="status" id="status">Status: --</div>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById('showBtn');
+    const cityInput = document.getElementById('cityInput');
+    const box = document.getElementById('weatherBox');
+    const tempEl = document.getElementById('temp');
+    const humEl = document.getElementById('humidity');
+    const statusEl = document.getElementById('status');
+
+    let interval;
+
+    btn.addEventListener('click', () => {
+      const city = cityInput.value.trim();
+      if(!city){
+        alert('Please enter a city name!');
+        return;
+      }
+
+      box.style.display = 'block';
+      updateWeather(city);
+
+      clearInterval(interval);
+      interval = setInterval(() => updateWeather(city), 2000); // simulate real-time
+    });
+
+    function updateWeather(city){
+      const temp = (Math.random()*15 + 20).toFixed(1);
+      const hum = (Math.random()*50 + 30).toFixed(0);
+      const statuses = ['Sunny','Cloudy','Rainy','Windy','Stormy','Foggy'];
+      const status = statuses[Math.floor(Math.random()*statuses.length)];
+
+      tempEl.textContent = `${temp} °C`;
+      humEl.textContent = `Humidity: ${hum}%`;
+      statusEl.textContent = `Status: ${status}`;
+
+      document.querySelector('h2').textContent = `🌤️ Weather in ${city}`;
+    }
+  </script>
+</body>
+</html>
